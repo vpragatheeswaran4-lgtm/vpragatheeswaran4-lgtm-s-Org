@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EEE'24 VEC Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @keyframes sunny {
+        0%, 100% {
+          transform: scale(1);
+          box-shadow: 0 0 50px 20px rgba(255, 255, 150, 0.5);
+        }
+        50% {
+          transform: scale(1.1);
+          box-shadow: 0 0 80px 35px rgba(255, 255, 150, 0.7);
+        }
+      }
+      .sun {
+        position: absolute;
+        top: 15%;
+        right: 15%;
+        width: 100px;
+        height: 100px;
+        background: radial-gradient(circle, rgba(255,255,220,1) 0%, rgba(253,222,45,1) 100%);
+        border-radius: 50%;
+        animation: sunny 10s ease-in-out infinite;
+      }
+      @keyframes fall {
+        0% { transform: translateY(-10vh) translateX(0vw); }
+        100% { transform: translateY(110vh) translateX(5vw); }
+      }
+      .snowflake {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: white;
+        border-radius: 50%;
+        opacity: 0.8;
+        animation: fall linear infinite;
+      }
+      @keyframes rain {
+        0% { transform: translateY(-10vh); }
+        100% { transform: translateY(110vh); }
+      }
+      .raindrop {
+        position: absolute;
+        width: 2px;
+        height: 15px;
+        background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.4));
+        animation: rain linear infinite;
+      }
+      @keyframes move-grid {
+        0% { background-position: 0 0; }
+        100% { background-position: 50px 50px; }
+      }
+      .ai-background-grid {
+        width: 100%;
+        height: 100%;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+        background-size: 50px 50px;
+        animation: move-grid 4s linear infinite;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^0.15.0"
+  }
+}
+</script>
+</head>
+  <body class="bg-gray-100 dark:bg-gray-900">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
