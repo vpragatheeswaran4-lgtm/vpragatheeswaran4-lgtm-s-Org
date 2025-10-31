@@ -11,6 +11,8 @@ export interface UploadedFile {
   uploadDate: Date;
   url: string; 
   isLink?: boolean;
+  isFolder?: boolean;
+  parentId?: string | null;
 }
 
 export interface Reminder {

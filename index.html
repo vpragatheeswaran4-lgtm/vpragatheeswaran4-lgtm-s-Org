@@ -50,18 +50,69 @@
         background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.4));
         animation: rain linear infinite;
       }
-      @keyframes move-grid {
-        0% { background-position: 0 0; }
-        100% { background-position: 50px 50px; }
+      
+      /* New Supernova and Comet animation */
+      @keyframes supernova-pulse {
+        0% {
+          transform: scale(0.95);
+          filter: hue-rotate(0deg) blur(80px) brightness(0.9);
+        }
+        50% {
+          transform: scale(1.1);
+          filter: hue-rotate(180deg) blur(100px) brightness(1.1);
+        }
+        100% {
+          transform: scale(0.95);
+          filter: hue-rotate(360deg) blur(80px) brightness(0.9);
+        }
       }
-      .ai-background-grid {
-        width: 100%;
-        height: 100%;
-        background-image:
-          linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-        background-size: 50px 50px;
-        animation: move-grid 4s linear infinite;
+
+      .supernova {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        margin-left: -25vw;
+        margin-top: -25vh;
+        width: 50vw;
+        height: 50vh;
+        background: radial-gradient(circle, #8A2BE2, #4169E1, #00BFFF, transparent 70%);
+        border-radius: 50%;
+        animation: supernova-pulse 25s ease-in-out infinite;
+        mix-blend-mode: screen;
+        opacity: 0.7;
+      }
+
+      @keyframes shooting-star {
+        0% {
+          transform: translateX(0) translateY(0) rotate(15deg);
+          opacity: 1;
+        }
+        100% {
+          transform: translateX(150vw) translateY(30vh) rotate(15deg);
+          opacity: 0;
+        }
+      }
+
+      .comet {
+        position: absolute;
+        width: 3px;
+        height: 3px;
+        background-color: #ffffff;
+        border-radius: 50%;
+        box-shadow: 0 0 10px 2px #fff;
+        animation: shooting-star linear infinite;
+        opacity: 0;
+      }
+
+      .comet::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        right: 1px;
+        transform: translateY(-50%);
+        width: 150px;
+        height: 1px;
+        background: linear-gradient(to left, rgba(255, 255, 255, 0.6), transparent);
       }
     </style>
   <script type="importmap">

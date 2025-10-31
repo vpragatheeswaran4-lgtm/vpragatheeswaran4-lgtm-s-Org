@@ -1,17 +1,23 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { UploadedFile, UserRole } from '../types';
 import FileIcon from './icons/FileIcon';
 import TrashIcon from './icons/TrashIcon';
 import UploadIcon from './icons/UploadIcon';
 import LinkIcon from './icons/LinkIcon';
 import PlusIcon from './icons/PlusIcon';
+import FolderIcon from './icons/FolderIcon';
+import EditIcon from './icons/EditIcon';
 
 interface FileListProps {
   userRole: UserRole;
   files: UploadedFile[];
-  onAddFile: (file: File) => void;
+  currentFolderId: string | null;
+  onNavigate: (folderId: string | null) => void;
+  onAddFile: (file: File, parentId: string | null) => void;
   onDeleteFile: (id: string) => void;
-  onAddFileLink: (link: { url: string; name: string }) => void;
+  onAddFileLink: (link: { url: string; name: string }, parentId: string | null) => void;
+  onAddFolder: (folderName: string, parentId: string | null) => void;
+  onRename: (id: string, newName: string) => void;
 }
 
 const formatFileSize = (bytes: number): string => {
@@ -98,39 +104,188 @@ const LinkUploader: React.FC<{ onAddFileLink: (link: { url: string, name: string
     );
 };
 
+const FolderCreator: React.FC<{ onAddFolder: (name: string) => void; onCancel: () => void }> = ({ onAddFolder, onCancel }) => {
+    const [name, setName] = useState('');
 
-const FileList: React.FC<FileListProps> = ({ userRole, files, onAddFile, onDeleteFile, onAddFileLink }) => {
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (name.trim()) {
+            onAddFolder(name.trim());
+            onCancel();
+        }
+    }
+
+    return (
+        <form onSubmit={handleSubmit} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Create a new folder</p>
+            <div className="flex flex-col sm:flex-row gap-2">
+                <input 
+                    type="text" 
+                    value={name} 
+                    onChange={e => setName(e.target.value)} 
+                    placeholder="Folder Name" 
+                    required 
+                    autoFocus
+                    className="flex-grow px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                />
+                <button 
+                    type="button" 
+                    onClick={onCancel}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-600"
+                >
+                    Cancel
+                </button>
+                <button type="submit" className="flex items-center justify-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+                    <PlusIcon className="w-4 h-4" />
+                    <span>Create</span>
+                </button>
+            </div>
+        </form>
+    );
+};
+
+
+const FileList: React.FC<FileListProps> = ({ userRole, files, currentFolderId, onNavigate, onAddFile, onDeleteFile, onAddFileLink, onAddFolder, onRename }) => {
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingId && editInputRef.current) {
+      editInputRef.current.focus();
+    }
+  }, [editingId]);
+
+  const handleRenameSubmit = () => {
+    if (editingId && editingName.trim()) {
+      onRename(editingId, editingName.trim());
+    }
+    setEditingId(null);
+    setEditingName('');
+  };
+
+  const buildBreadcrumbs = () => {
+    const crumbs: {id: string | null, name: string}[] = [{ id: null, name: 'All Files' }];
+    let currentId = currentFolderId;
+    while (currentId) {
+      const folder = files.find(f => f.id === currentId);
+      if (folder) {
+        crumbs.unshift({ id: folder.id, name: folder.name });
+        currentId = folder.parentId ?? null;
+      } else {
+        break;
+      }
+    }
+    return crumbs;
+  };
+  
+  const breadcrumbs = buildBreadcrumbs();
+
+  const displayedFiles = files
+    .filter(file => file.parentId === currentFolderId)
+    .sort((a, b) => {
+        if (a.isFolder && !b.isFolder) return -1;
+        if (!a.isFolder && b.isFolder) return 1;
+        if (a.isFolder && b.isFolder) {
+            return a.name.localeCompare(b.name);
+        }
+        return b.uploadDate.getTime() - a.uploadDate.getTime();
+    });
+
   return (
     <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-4 sm:p-6 rounded-lg shadow-lg">
       <h2 className="text-xl font-bold mb-4">Documents & Files</h2>
+
+      <nav aria-label="Breadcrumb" className="mb-4 text-sm text-gray-600 dark:text-gray-400 flex items-center flex-wrap">
+        {breadcrumbs.map((crumb, index) => (
+          <React.Fragment key={crumb.id || 'root'}>
+            {index > 0 && <span className="mx-2 select-none">/</span>}
+            <button
+              onClick={() => onNavigate(crumb.id)}
+              className={`hover:underline ${index === breadcrumbs.length - 1 ? 'font-semibold text-gray-800 dark:text-gray-200 cursor-default' : ''}`}
+              disabled={index === breadcrumbs.length - 1}
+              aria-current={index === breadcrumbs.length - 1 ? 'page' : undefined}
+            >
+              {crumb.name}
+            </button>
+          </React.Fragment>
+        ))}
+      </nav>
+
       {userRole === UserRole.Admin && (
         <div className="mb-6">
-            <FileUploader onAddFile={onAddFile} />
-            <LinkUploader onAddFileLink={onAddFileLink} />
+            <FileUploader onAddFile={(file) => onAddFile(file, currentFolderId)} />
+            <LinkUploader onAddFileLink={(link) => onAddFileLink(link, currentFolderId)} />
+              <div className="mt-4">
+                {!isCreatingFolder ? (
+                    <div className="text-center">
+                        <button 
+                            onClick={() => setIsCreatingFolder(true)}
+                            className="flex items-center justify-center w-full sm:w-auto sm:inline-flex space-x-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600/50 transition-colors"
+                        >
+                            <FolderIcon className="w-5 h-5" />
+                            <span>Create New Folder</span>
+                        </button>
+                    </div>
+                ) : (
+                    <FolderCreator onAddFolder={(name) => onAddFolder(name, currentFolderId)} onCancel={() => setIsCreatingFolder(false)} />
+                )}
+            </div>
         </div>
       )}
+
        <div className="space-y-3">
-        {files.length > 0 ? files.map(file => (
-          <div key={file.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-            <div className="flex items-center space-x-3 min-w-0">
-                {file.isLink ? <LinkIcon className="w-6 h-6 text-green-500 flex-shrink-0" /> : <FileIcon className="w-6 h-6 text-blue-500 flex-shrink-0" />}
-              <div className="min-w-0">
-                <a href={file.url} download={!file.isLink ? file.name : undefined} target={file.isLink ? "_blank" : "_self"} rel={file.isLink ? "noopener noreferrer" : ""} className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate hover:underline" title={file.name}>
-                  {file.name}
-                </a>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {file.isLink ? 'Web Link' : formatFileSize(file.size)} - {file.uploadDate.toLocaleDateString()}
-                </p>
-              </div>
+        {displayedFiles.length > 0 ? displayedFiles.map(file => (
+          <div key={file.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+            <div className="flex items-center space-x-3 min-w-0 flex-1">
+                {file.isFolder ? <FolderIcon className="w-6 h-6 text-yellow-500 flex-shrink-0" /> : file.isLink ? <LinkIcon className="w-6 h-6 text-green-500 flex-shrink-0" /> : <FileIcon className="w-6 h-6 text-blue-500 flex-shrink-0" />}
+                <div className="min-w-0 flex-1">
+                    {userRole === UserRole.Admin && editingId === file.id ? (
+                      <form onSubmit={(e) => { e.preventDefault(); handleRenameSubmit(); }} className="flex-1">
+                        <input
+                            ref={editInputRef}
+                            type="text"
+                            value={editingName}
+                            onChange={(e) => setEditingName(e.target.value)}
+                            onBlur={handleRenameSubmit}
+                            className="text-sm font-medium bg-white dark:bg-gray-800 border border-blue-500 rounded px-1 py-0.5 w-full"
+                        />
+                      </form>
+                    ) : (
+                        file.isFolder ? (
+                            <button onClick={() => onNavigate(file.id)} className="text-left w-full">
+                                <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate hover:underline" title={file.name}>
+                                    {file.name}
+                                </span>
+                            </button>
+                        ) : (
+                            <a href={file.url} download={!file.isLink ? file.name : undefined} target={file.isLink ? "_blank" : "_self"} rel={file.isLink ? "noopener noreferrer" : ""} className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate hover:underline" title={file.name}>
+                                {file.name}
+                            </a>
+                        )
+                    )}
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {file.isFolder ? 'Folder' : file.isLink ? 'Web Link' : formatFileSize(file.size)} - {file.uploadDate.toLocaleDateString()}
+                    </p>
+                </div>
             </div>
+           
             {userRole === UserRole.Admin && (
-              <button onClick={() => onDeleteFile(file.id)} className="p-1.5 text-gray-500 hover:text-red-500 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors">
-                <TrashIcon className="w-4 h-4" />
-              </button>
+              <div className="flex items-center flex-shrink-0">
+                <button onClick={() => { setEditingId(file.id); setEditingName(file.name); }} className="p-1.5 text-gray-500 hover:text-blue-500 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100" aria-label={`Rename ${file.name}`}>
+                    <EditIcon className="w-4 h-4" />
+                </button>
+                <button onClick={() => onDeleteFile(file.id)} className="p-1.5 text-gray-500 hover:text-red-500 rounded-full hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" aria-label={`Delete ${file.name}`}>
+                    <TrashIcon className="w-4 h-4" />
+                </button>
+              </div>
             )}
           </div>
         )) : (
-            <p className="text-center text-gray-500 py-4">No files have been uploaded yet.</p>
+            <p className="text-center text-gray-500 py-4">
+              {currentFolderId === null ? "No files or folders have been added yet." : "This folder is empty."}
+            </p>
         )}
       </div>
     </div>

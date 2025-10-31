@@ -1,5 +1,5 @@
 {
-  "name": "EEE'24 VEC Hub",
+  "name": "Copy of EEE'24 VEC Hub",
   "description": "A centralized hub for the EEE'24 batch at VEC, allowing admins to share files, set reminders, and post event links for students.",
   "requestFramePermissions": [
     "camera"

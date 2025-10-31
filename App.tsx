@@ -7,10 +7,22 @@ import { GoogleGenAI } from '@google/genai';
 const AnimatedBackground: React.FC<{ activeTab: Tab }> = ({ activeTab }) => {
   const backgrounds: Record<Tab, { gradient: string; elements: React.ReactNode }> = {
     ai: {
-      gradient: 'from-gray-900 via-blue-900 to-indigo-900',
+      gradient: 'from-gray-900 via-indigo-900 to-black',
       elements: (
         <div className="absolute inset-0 overflow-hidden">
-          <div className="ai-background-grid"></div>
+          <div className="supernova"></div>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={i}
+              className="comet"
+              style={{
+                top: `${Math.random() * 100}%`,
+                left: `-10%`,
+                animationDuration: `${Math.random() * 3 + 2}s`,
+                animationDelay: `${Math.random() * 5}s`,
+              }}
+            />
+          ))}
         </div>
       )
     },
@@ -89,11 +101,16 @@ const App: React.FC = () => {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiMode, setAiMode] = useState<AiMode>('balanced');
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
 
   // Mock data
   const [files, setFiles] = useState<UploadedFile[]>([
-    { id: '1', name: 'Circuit Theory Notes.pdf', size: 2048000, type: 'application/pdf', uploadDate: new Date('2024-07-20T10:00:00Z'), url: '#' },
-    { id: '2', name: 'Lab Report Template.docx', size: 51200, type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', uploadDate: new Date('2024-07-19T15:30:00Z'), url: '#' },
+    { id: 'folder-1', name: 'Course Materials', size: 0, type: 'folder', uploadDate: new Date(), url: '', isFolder: true, parentId: null },
+    { id: 'file-1', name: 'Syllabus.pdf', size: 102400, type: 'application/pdf', uploadDate: new Date(), url: '#', parentId: 'folder-1' },
+    { id: 'folder-2', name: 'ECA', size: 0, type: 'folder', uploadDate: new Date(), url: '', isFolder: true, parentId: null },
+    { id: 'file-2', name: 'Event Schedule.xlsx', size: 25600, type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', uploadDate: new Date(), url: '#', parentId: 'folder-2' },
+    { id: 'folder-3', name: 'Assignments', size: 0, type: 'folder', uploadDate: new Date(), url: '', isFolder: true, parentId: null },
+    { id: 'file-3', name: 'DSP_Assignment_1.pdf', size: 5120, type: 'application/pdf', uploadDate: new Date(), url: '#', parentId: 'folder-3' },
   ]);
 
   const [reminders, setReminders] = useState<Reminder[]>([
@@ -130,7 +147,11 @@ const App: React.FC = () => {
     if (!prompt && !attachedFile) return;
 
     setIsAiLoading(true);
-    const effectivePrompt = prompt || (attachedFile ? "Analyze this file and give me the important key points." : "");
+    let defaultPrompt = "Analyze this file and give me the important key points.";
+    if (attachedFile?.type.startsWith('image/')) {
+        defaultPrompt = "Analyze this image and provide the important key points.";
+    }
+    const effectivePrompt = prompt || (attachedFile ? defaultPrompt : "");
     
     const newAttachment: ChatAttachment | undefined = attachedFile ? {
         name: attachedFile.name,
@@ -157,7 +178,7 @@ const App: React.FC = () => {
 
         switch (aiMode) {
             case 'fast':
-                model = 'gemini-2.5-flash-lite';
+                model = 'gemini-flash-lite-latest';
                 break;
             case 'advanced':
                 model = 'gemini-2.5-pro';
@@ -203,7 +224,7 @@ const App: React.FC = () => {
   };
 
 
-  const handleAddFile = (file: File) => {
+  const handleAddFile = (file: File, parentId: string | null) => {
     const newFile: UploadedFile = {
       id: crypto.randomUUID(),
       name: file.name,
@@ -212,11 +233,12 @@ const App: React.FC = () => {
       uploadDate: new Date(),
       url: URL.createObjectURL(file),
       isLink: false,
+      parentId,
     };
     setFiles(prev => [newFile, ...prev]);
   };
 
-  const handleAddFileLink = (link: { url: string; name: string }) => {
+  const handleAddFileLink = (link: { url: string; name: string }, parentId: string | null) => {
     const newLinkFile: UploadedFile = {
         id: crypto.randomUUID(),
         name: link.name,
@@ -225,16 +247,60 @@ const App: React.FC = () => {
         uploadDate: new Date(),
         url: link.url,
         isLink: true,
+        parentId,
     };
     setFiles(prev => [newLinkFile, ...prev]);
   }
+  
+  const handleRenameFile = (id: string, newName: string) => {
+    setFiles(prevFiles => prevFiles.map(file => 
+      file.id === id ? { ...file, name: newName } : file
+    ));
+  };
 
   const handleDeleteFile = (id: string) => {
+    let idsToDelete: string[] = [id];
     const fileToDelete = files.find(f => f.id === id);
-    if(fileToDelete && !fileToDelete.isLink && fileToDelete.url.startsWith('blob:')){
-        URL.revokeObjectURL(fileToDelete.url);
+
+    if (fileToDelete?.isFolder) {
+        const getDescendants = (folderId: string): string[] => {
+            const children = files.filter(f => f.parentId === folderId);
+            let descendants: string[] = [];
+            for (const child of children) {
+                descendants.push(child.id);
+                if (child.isFolder) {
+                    descendants = [...descendants, ...getDescendants(child.id)];
+                }
+            }
+            return descendants;
+        };
+        idsToDelete = [...idsToDelete, ...getDescendants(id)];
     }
-    setFiles(prev => prev.filter(f => f.id !== id));
+    
+    idsToDelete.forEach(deleteId => {
+        const file = files.find(f => f.id === deleteId);
+        if (file && !file.isLink && file.url.startsWith('blob:')) {
+            URL.revokeObjectURL(file.url);
+        }
+    });
+    
+    setFiles(prev => prev.filter(f => !idsToDelete.includes(f.id)));
+  };
+
+
+  const handleAddFolder = (folderName: string, parentId: string | null) => {
+    const newFolder: UploadedFile = {
+      id: crypto.randomUUID(),
+      name: folderName,
+      size: 0,
+      type: 'folder',
+      uploadDate: new Date(),
+      url: '',
+      isFolder: true,
+      isLink: false,
+      parentId,
+    };
+    setFiles(prev => [newFolder, ...prev]);
   };
 
   const handleAddReminder = (reminder: Omit<Reminder, 'id' | 'attachment' | 'link'>, attachmentFile?: File, linkUrl?: string) => {
@@ -286,11 +352,15 @@ const App: React.FC = () => {
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
                 files={files}
+                currentFolderId={currentFolderId}
+                onNavigateToFolder={setCurrentFolderId}
                 reminders={reminders}
                 eventLinks={eventLinks}
                 onAddFile={handleAddFile}
                 onDeleteFile={handleDeleteFile}
                 onAddFileLink={handleAddFileLink}
+                onAddFolder={handleAddFolder}
+                onRenameFile={handleRenameFile}
                 onAddReminder={handleAddReminder}
                 onDeleteReminder={handleDeleteReminder}
                 onAddEventLink={handleAddEventLink}

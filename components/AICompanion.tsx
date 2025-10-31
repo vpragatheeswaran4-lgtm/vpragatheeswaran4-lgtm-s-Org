@@ -9,6 +9,8 @@ import LightningBoltIcon from './icons/LightningBoltIcon';
 import AcademicCapIcon from './icons/AcademicCapIcon';
 import GlobeAltIcon from './icons/GlobeAltIcon';
 import LinkIcon from './icons/LinkIcon';
+import CameraIcon from './icons/CameraIcon';
+import CameraModal from './CameraModal';
 
 
 interface AICompanionProps {
@@ -31,6 +33,7 @@ const AICompanion: React.FC<AICompanionProps> = ({ chatHistory, isLoading, onSen
   const [prompt, setPrompt] = useState('');
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -59,6 +62,20 @@ const AICompanion: React.FC<AICompanionProps> = ({ chatHistory, isLoading, onSen
     }
     if(fileInputRef.current) {
         fileInputRef.current.value = "";
+    }
+  };
+
+  const handleImageCapture = (file: File) => {
+    if (aiMode === 'web') {
+      return;
+    }
+    clearAttachment();
+    setAttachedFile(file);
+    if (file.type.startsWith('image/')) {
+      const previewUrl = URL.createObjectURL(file);
+      setFilePreviewUrl(previewUrl);
+    } else {
+      setFilePreviewUrl(null);
     }
   };
 
@@ -154,6 +171,9 @@ const AICompanion: React.FC<AICompanionProps> = ({ chatHistory, isLoading, onSen
            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={aiMode === 'web'} className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
                <PaperclipIcon className="w-6 h-6" />
            </button>
+           <button type="button" onClick={() => setIsCameraOpen(true)} disabled={aiMode === 'web'} className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">
+               <CameraIcon className="w-6 h-6" />
+           </button>
            <div className="flex-1 relative">
             {attachedFile && (
                 <div className="absolute bottom-12 left-0 p-1 bg-white dark:bg-gray-800 rounded-lg shadow-md">
@@ -184,6 +204,11 @@ const AICompanion: React.FC<AICompanionProps> = ({ chatHistory, isLoading, onSen
            </button>
         </form>
       </div>
+      <CameraModal 
+        isOpen={isCameraOpen} 
+        onClose={() => setIsCameraOpen(false)} 
+        onCapture={handleImageCapture}
+      />
     </div>
   );
 };

@@ -14,11 +14,15 @@ interface DashboardProps {
   activeTab: Tab;
   onTabChange: (tab: Tab) => void;
   files: UploadedFile[];
+  currentFolderId: string | null;
+  onNavigateToFolder: (folderId: string | null) => void;
   reminders: Reminder[];
   eventLinks: EventLink[];
-  onAddFile: (file: File) => void;
+  onAddFile: (file: File, parentId: string | null) => void;
   onDeleteFile: (id: string) => void;
-  onAddFileLink: (link: { url: string; name: string }) => void;
+  onAddFileLink: (link: { url: string; name: string }, parentId: string | null) => void;
+  onAddFolder: (folderName: string, parentId: string | null) => void;
+  onRenameFile: (id: string, newName: string) => void;
   onAddReminder: (reminder: Omit<Reminder, 'id' | 'attachment' | 'link'>, attachmentFile?: File, linkUrl?: string) => void;
   onDeleteReminder: (id: string) => void;
   onAddEventLink: (eventLink: Omit<EventLink, 'id' | 'attachment'>, attachmentFile?: File) => void;
@@ -36,11 +40,15 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
     activeTab,
     onTabChange,
     files,
+    currentFolderId,
+    onNavigateToFolder,
     reminders,
     eventLinks,
     onAddFile,
     onDeleteFile,
     onAddFileLink,
+    onAddFolder,
+    onRenameFile,
     onAddReminder,
     onDeleteReminder,
     onAddEventLink,
@@ -70,7 +78,17 @@ const Dashboard: React.FC<DashboardProps> = (props) => {
             onAiModeChange={onAiModeChange}
         />;
       case 'files':
-        return <FileList userRole={userRole} files={files} onAddFile={onAddFile} onDeleteFile={onDeleteFile} onAddFileLink={onAddFileLink} />;
+        return <FileList 
+          userRole={userRole} 
+          files={files} 
+          currentFolderId={currentFolderId}
+          onNavigate={onNavigateToFolder}
+          onAddFile={onAddFile} 
+          onDeleteFile={onDeleteFile} 
+          onAddFileLink={onAddFileLink} 
+          onAddFolder={onAddFolder}
+          onRename={onRenameFile}
+        />;
       case 'reminders':
         return <Reminders userRole={userRole} reminders={reminders} onAddReminder={onAddReminder} onDeleteReminder={onDeleteReminder} />;
       case 'events':
